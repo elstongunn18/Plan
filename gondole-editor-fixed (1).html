@@ -1,0 +1,1695 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Éditeur de Gondoles</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: #f1f5f9;
+    }
+    .header {
+      background-color: #e2001a;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title {
+      font-size: 1.25rem;
+      font-weight: bold;
+    }
+    .button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-weight: bold;
+      margin-left: 0.5rem;
+    }
+    .btn-add {
+      background-color: #22c55e;
+      color: white;
+    }
+    .btn-add:hover {
+      background-color: #16a34a;
+    }
+    .btn-action {
+      background-color: #3b82f6;
+      color: white;
+    }
+    .btn-action:hover {
+      background-color: #2563eb;
+    }
+    .btn-upload {
+      background-color: #8b5cf6;
+      color: white;
+    }
+    .btn-upload:hover {
+      background-color: #7c3aed;
+    }
+    .content {
+      flex: 1;
+      padding: 1rem;
+      overflow: auto;
+      position: relative;
+    }
+    .svg-container {
+      width: 100%;
+      height: 100%;
+      border: 1px solid #cbd5e1;
+      background-color: white;
+    }
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .popup {
+      background-color: white;
+      padding: 1.5rem;
+      border-radius: 0.5rem;
+      width: 24rem;
+      max-width: 90%;
+    }
+    .popup-title {
+      font-size: 1.125rem;
+      font-weight: bold;
+      margin-bottom: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.25rem;
+    }
+    .popup-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .btn-cancel {
+      background-color: #cbd5e1;
+    }
+    .btn-cancel:hover {
+      background-color: #94a3b8;
+    }
+    .hidden {
+      display: none;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .zoom-controls {
+      position: absolute;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 90;
+    }
+    .zoom-btn {
+      width: 2.5rem;
+      height: 2.5rem;
+      background-color: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    .zoom-btn:hover {
+      background-color: #f8fafc;
+    }
+    .info-panel {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 0.5rem;
+      position: absolute;
+      top: 1rem;
+      left: 1rem;
+      border-radius: 0.25rem;
+      border: 1px solid #cbd5e1;
+      font-size: 0.75rem;
+      z-index: 90;
+    }
+    .selected {
+      stroke: #e2001a !important;
+      stroke-width: 3 !important;
+      stroke-dasharray: 5 !important;
+    }
+    .element-selected {
+      stroke: #8b5cf6 !important;
+      stroke-width: 2 !important;
+      stroke-dasharray: 2 !important;
+    }
+    .resize-handle {
+      fill: #3b82f6;
+      cursor: ew-resize;
+    }
+    .rotation-handle {
+      fill: #e2001a;
+      cursor: pointer;
+    }
+    .rotation-line {
+      stroke: #e2001a;
+      stroke-width: 2;
+      stroke-dasharray: 5;
+    }
+    .actions-panel {
+      position: absolute;
+      bottom: 1.5rem;
+      left: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      z-index: 90;
+    }
+    .controls-panel {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      z-index: 90;
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      border: 1px solid #cbd5e1;
+    }
+    .rotate-info {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      border: 1px solid #cbd5e1;
+      font-size: 0.75rem;
+      position: absolute;
+      bottom: 5rem;
+      left: 1.5rem;
+      z-index: 90;
+      display: none;
+    }
+    .element {
+      fill-opacity: 0.7;
+    }
+    .element:hover {
+      fill-opacity: 0.9;
+    }
+    .context-menu {
+      position: absolute;
+      background-color: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.25rem;
+      padding: 0.5rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 110;
+    }
+    .context-menu-item {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .context-menu-item:hover {
+      background-color: #f8fafc;
+    }
+    .context-menu-divider {
+      height: 1px;
+      background-color: #e2e8f0;
+      margin: 0.25rem 0;
+    }
+    .tooltip-table {
+      border-collapse: collapse;
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    .tooltip-table th {
+      text-align: left;
+      font-weight: bold;
+      padding: 2px 5px;
+    }
+    .tooltip-table td {
+      padding: 2px 5px;
+    }
+    .resize-instructions {
+      text-align: center;
+      margin-top: 1rem;
+      font-style: italic;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 class="title">Éditeur de Gondoles</h1>
+    <div>
+      <button id="btnAddGondole" class="button btn-add">Ajouter une Gondole</button>
+      <button id="btnSave" class="button btn-action">Enregistrer</button>
+      <button id="btnLoad" class="button btn-action">Charger Plan</button>
+      <input type="file" id="fileInput" accept=".json">
+    </div>
+  </div>
+  <div class="content">
+    <svg id="svgCanvas" class="svg-container" viewBox="0 0 1000 600"></svg>
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomIn">+</button>
+      <button class="zoom-btn" id="zoomOut">−</button>
+      <button class="zoom-btn" id="zoomReset">↺</button>
+    </div>
+    <div class="info-panel" id="infoPanel">
+      Zoom: 100%
+    </div>
+    <div class="actions-panel">
+      <button class="zoom-btn" id="rotateLeft">↺</button>
+      <button class="zoom-btn" id="rotateRight">↻</button>
+    </div>
+    <div class="controls-panel">
+      <button id="btnDeleteSelected" class="button" style="background-color: #ef4444; color: white;" disabled>Supprimer</button>
+    </div>
+    <div class="rotate-info" id="rotateInfo">
+      R + Glisser pour faire pivoter
+    </div>
+    
+    <div id="tooltip" style="position: absolute; display: none; background-color: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 100; pointer-events: none;"></div>
+    
+    <div id="contextMenu" class="context-menu hidden" style="display: none;"></div>
+  </div>
+
+  <!-- Pop-up pour ajouter une gondole -->
+  <div id="gondolePopup" class="popup-overlay hidden">
+    <div class="popup">
+      <h2 class="popup-title">Ajouter une Gondole</h2>
+      <div class="form-group">
+        <label class="form-label">Code</label>
+        <input type="text" id="gondoleCode" class="form-input" placeholder="G001">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nom</label>
+        <input type="text" id="gondoleName" class="form-input" placeholder="Gondole principale">
+      </div>
+      <div class="popup-footer">
+        <button class="button btn-cancel" id="gondoleCancelBtn">Annuler</button>
+        <button class="button btn-action" id="gondoleSubmitBtn">Ajouter</button>
+      </div>
+      <div class="resize-instructions">
+        Après création, vous pourrez ajuster la longueur de la gondole en faisant glisser la poignée latérale.
+      </div>
+    </div>
+  </div>
+
+  <!-- Pop-up pour diviser une gondole en éléments -->
+  <div id="dividePopup" class="popup-overlay hidden">
+    <div class="popup">
+      <h2 class="popup-title">Diviser en éléments</h2>
+      <div class="form-group">
+        <label class="form-label">Nombre d'éléments</label>
+        <input type="number" id="elementsCount" class="form-input" value="5" min="1" max="20">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Couleur des éléments</label>
+        <input type="color" id="elementsColor" class="form-input" value="#3498db">
+      </div>
+      <div class="popup-footer">
+        <button class="button btn-cancel" id="divideCancelBtn">Annuler</button>
+        <button class="button btn-action" id="divideSubmitBtn">Diviser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pop-up pour enrichir un élément -->
+  <div id="enrichPopup" class="popup-overlay hidden">
+    <div class="popup">
+      <h2 class="popup-title">Enrichir l'élément</h2>
+      <div class="form-group">
+        <label class="form-label">Nombre d'étagères</label>
+        <input type="number" id="shelvesCount" class="form-input" placeholder="Nombre d'étagères">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mètre au sol (m)</label>
+        <input type="number" id="floorSpace" class="form-input" placeholder="Mètre au sol" step="0.1" min="0.1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Profondeur (cm)</label>
+        <input type="number" id="elementDepth" class="form-input" placeholder="Profondeur" min="10">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Responsable</label>
+        <input type="text" id="elementManager" class="form-input" placeholder="Nom du responsable">
+      </div>
+      <div class="popup-footer">
+        <button class="button btn-cancel" id="enrichCancelBtn">Annuler</button>
+        <button class="button btn-action" id="enrichSubmitBtn">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // ==============================================================
+      // Architecture modulaire pour l'éditeur de gondoles
+      // ==============================================================
+      
+      // EventBus - Système de communication entre modules
+      const EventBus = {
+        listeners: {},
+        
+        on: function(event, callback) {
+          if (!this.listeners[event]) {
+            this.listeners[event] = [];
+          }
+          this.listeners[event].push(callback);
+        },
+        
+        off: function(event, callback) {
+          if (!this.listeners[event]) return;
+          this.listeners[event] = this.listeners[event].filter(
+            listener => listener !== callback
+          );
+        },
+        
+        emit: function(event, data) {
+          if (!this.listeners[event]) return;
+          this.listeners[event].forEach(callback => {
+            callback(data);
+          });
+        }
+      };
+      
+      // AppState - État central de l'application
+      const AppState = {
+        // Structure de données hiérarchique
+        gondoles: [], // Gondoles
+        elements: [], // Éléments
+        
+        // État de la sélection
+        selectedType: null, // "gondole", "element"
+        selectedId: null,
+        
+        // État d'interaction
+        scale: 1,
+        translateX: 0,
+        translateY: 0,
+        isPanning: false,
+        isDragging: false,
+        isRotating: false,
+        isResizing: false,
+        resizeSide: null, // "left" ou "right"
+        rotationKeyPressed: false,
+        contextMenuOpen: false,
+        
+        // Dimensions par défaut pour les nouvelles gondoles
+        defaultGondoleWidth: 300,
+        defaultGondoleHeight: 80,
+        
+        // Compteurs pour générer des codes uniques
+        gondoleCounter: 1,
+        
+        // Méthodes pour manipuler l'état
+        addGondole: function(gondole) {
+          // Générer un ID unique
+          gondole.id = Date.now() + '_gondole_' + this.gondoles.length;
+          this.gondoles.push(gondole);
+          return gondole.id;
+        },
+        
+        addElement: function(element) {
+          // Générer un ID unique
+          element.id = Date.now() + '_element_' + this.elements.length;
+          this.elements.push(element);
+          return element.id;
+        },
+        
+        updateGondole: function(id, updates) {
+          const index = this.gondoles.findIndex(g => g.id === id);
+          if (index !== -1) {
+            for (const key in updates) {
+              this.gondoles[index][key] = updates[key];
+            }
+          }
+        },
+        
+        updateElement: function(id, updates) {
+          const index = this.elements.findIndex(e => e.id === id);
+          if (index !== -1) {
+            for (const key in updates) {
+              this.elements[index][key] = updates[key];
+            }
+          }
+        },
+        
+        removeGondole: function(id) {
+          // Supprimer les éléments associés
+          const elementsToRemove = this.elements.filter(e => e.parentId === id);
+          elementsToRemove.forEach(element => {
+            this.removeElement(element.id);
+          });
+          
+          // Supprimer la gondole
+          this.gondoles = this.gondoles.filter(g => g.id !== id);
+        },
+        
+        removeElement: function(id) {
+          this.elements = this.elements.filter(e => e.id !== id);
+        },
+        
+        getGondole: function(id) {
+          return this.gondoles.find(g => g.id === id) || null;
+        },
+        
+        getElement: function(id) {
+          return this.elements.find(e => e.id === id) || null;
+        },
+        
+        getSelectedItem: function() {
+          if (!this.selectedType || !this.selectedId) return null;
+          
+          switch (this.selectedType) {
+            case "gondole":
+              return this.getGondole(this.selectedId);
+            case "element":
+              return this.getElement(this.selectedId);
+            default:
+              return null;
+          }
+        },
+        
+        getParentGondole: function(elementId) {
+          const element = this.getElement(elementId);
+          return element ? this.getGondole(element.parentId) : null;
+        },
+        
+        getElementsByGondoleId: function(gondoleId) {
+          return this.elements.filter(e => e.parentId === gondoleId);
+        },
+        
+        selectItem: function(type, id) {
+          this.selectedType = type;
+          this.selectedId = id;
+          this.updateControlButtons();
+        },
+        
+        deselectItem: function() {
+          this.selectedType = null;
+          this.selectedId = null;
+          this.updateControlButtons();
+        },
+        
+        updateControlButtons: function() {
+          const btnDelete = document.getElementById('btnDeleteSelected');
+          btnDelete.disabled = !this.selectedType;
+        },
+        
+        getNextGondoleCode: function() {
+          const code = `G${String(this.gondoleCounter).padStart(3, '0')}`;
+          this.gondoleCounter++;
+          return code;
+        },
+        
+        // Obtenir le prochain numéro d'élément pour une gondole donnée
+        getNextElementNumber: function(gondoleId) {
+          const elements = this.getElementsByGondoleId(gondoleId);
+          
+          // Si aucun élément, commencer à 1
+          if (elements.length === 0) {
+            return 1;
+          }
+          
+          // Sinon, prendre le maximum + 1
+          const maxNumber = Math.max(...elements.map(e => 
+            parseInt(e.number) || 0
+          ));
+          
+          return maxNumber + 1;
+        },
+        
+        // Recalculer la largeur des éléments après redimensionnement d'une gondole
+        recalculateElementsWidth: function(gondoleId) {
+          const gondole = this.getGondole(gondoleId);
+          if (!gondole) return;
+          
+          const elements = this.getElementsByGondoleId(gondoleId);
+          const elementCount = elements.length;
+          
+          if (elementCount === 0) return;
+          
+          // Calculer la nouvelle largeur pour chaque élément
+          const newElementWidth = gondole.width / elementCount;
+          
+          // Mettre à jour les positions et largeurs des éléments
+          elements.forEach((element, index) => {
+            this.updateElement(element.id, {
+              x: index * newElementWidth,
+              width: newElementWidth
+            });
+          });
+        }
+      };
+      
+      // SVGCanvasManager - Gestion du canvas SVG
+      const SVGCanvasManager = {
+        svg: document.getElementById('svgCanvas'),
+        contextMenu: document.getElementById('contextMenu'),
+        
+        initialize: function() {
+          this.svg.addEventListener('mousedown', this.handleSVGMouseDown.bind(this));
+          this.svg.addEventListener('wheel', this.handleWheel.bind(this));
+          this.svg.addEventListener('contextmenu', this.handleContextMenu.bind(this));
+          document.addEventListener('click', this.closeContextMenu.bind(this));
+          
+          // Écouter les événements
+          EventBus.on('renderCanvas', this.renderCanvas.bind(this));
+        },
+        
+        createSvgElement: function(tag) {
+          return document.createElementNS("http://www.w3.org/2000/svg", tag);
+        },
+        
+        getMousePosition: function(evt) {
+          const CTM = this.svg.getScreenCTM();
+          return {
+            x: (evt.clientX - CTM.e) / CTM.a / AppState.scale - AppState.translateX,
+            y: (evt.clientY - CTM.f) / CTM.d / AppState.scale - AppState.translateY
+          };
+        },
+        
+        handleContextMenu: function(e) {
+          e.preventDefault();
+          
+          if (AppState.contextMenuOpen) {
+            this.closeContextMenu();
+            return;
+          }
+          
+          // Position du menu contextuel
+          this.contextMenu.style.left = `${e.clientX}px`;
+          this.contextMenu.style.top = `${e.clientY}px`;
+          
+          // Options du menu contextuel
+          this.contextMenu.innerHTML = '';
+          
+          if (AppState.selectedType) {
+            const addMenuItem = (text, action) => {
+              const item = document.createElement('div');
+              item.className = 'context-menu-item';
+              item.textContent = text;
+              item.addEventListener('click', action);
+              this.contextMenu.appendChild(item);
+            };
+            
+            const addDivider = () => {
+              const divider = document.createElement('div');
+              divider.className = 'context-menu-divider';
+              this.contextMenu.appendChild(divider);
+            };
+            
+            // Options en fonction du type d'élément sélectionné
+            switch (AppState.selectedType) {
+              case "gondole":
+                const gondole = AppState.getGondole(AppState.selectedId);
+                const hasElements = AppState.getElementsByGondoleId(AppState.selectedId).length > 0;
+                
+                if (!hasElements) {
+                  addMenuItem('Diviser en éléments', () => {
+                    UIManager.showDividePopup();
+                  });
+                  addDivider();
+                }
+                break;
+                
+              case "element":
+                addMenuItem('Enrichir l\'élément', () => {
+                  UIManager.showEnrichPopup();
+                });
+                addDivider();
+                break;
+            }
+            
+            addMenuItem('Supprimer', () => {
+              GondoleManager.deleteSelectedItem();
+            });
+          }
+          
+          // Afficher le menu contextuel
+          if (this.contextMenu.children.length > 0) {
+            this.contextMenu.style.display = 'block';
+            AppState.contextMenuOpen = true;
+          }
+        },
+        
+        closeContextMenu: function() {
+          this.contextMenu.style.display = 'none';
+          AppState.contextMenuOpen = false;
+        },
+        
+        renderCanvas: function() {
+          // Vider le canvas
+          while (this.svg.firstChild) {
+            this.svg.removeChild(this.svg.firstChild);
+          }
+          
+          // Créer un groupe de transformation
+          const mainGroup = this.createSvgElement('g');
+          mainGroup.setAttribute('transform', `scale(${AppState.scale}) translate(${AppState.translateX}, ${AppState.translateY})`);
+          
+          // Dessiner les gondoles
+          AppState.gondoles.forEach(gondole => this.renderGondole(mainGroup, gondole));
+          
+          this.svg.appendChild(mainGroup);
+        },
+        
+        renderGondole: function(parentGroup, gondole) {
+          const gondoleGroup = this.createSvgElement('g');
+          gondoleGroup.dataset.id = gondole.id;
+          gondoleGroup.dataset.type = "gondole";
+          
+          // Calculer le centre pour la rotation
+          const centerX = gondole.x + gondole.width / 2;
+          const centerY = gondole.y + gondole.height / 2;
+          
+          // Appliquer la rotation
+          gondoleGroup.setAttribute('transform', `rotate(${gondole.rotation || 0}, ${centerX}, ${centerY})`);
+          
+          // Créer le rectangle de la gondole
+          const rectangle = this.createSvgElement('rect');
+          rectangle.setAttribute('x', gondole.x);
+          rectangle.setAttribute('y', gondole.y);
+          rectangle.setAttribute('width', gondole.width);
+          rectangle.setAttribute('height', gondole.height);
+          rectangle.setAttribute('fill', '#f8fafc');
+          rectangle.setAttribute('stroke', '#94a3b8');
+          rectangle.setAttribute('stroke-width', '2');
+          
+          // Ajouter une classe pour la gondole sélectionnée
+          if (AppState.selectedType === "gondole" && AppState.selectedId === gondole.id) {
+            rectangle.classList.add('selected');
+          }
+          
+          // Texte du code de la gondole
+          const codeText = this.createSvgElement('text');
+          codeText.setAttribute('x', centerX);
+          codeText.setAttribute('y', gondole.y + 20);
+          codeText.setAttribute('text-anchor', 'middle');
+          codeText.setAttribute('font-size', '16');
+          codeText.setAttribute('font-weight', 'bold');
+          codeText.textContent = gondole.code;
+          
+          // Texte du nom de la gondole
+          const nameText = this.createSvgElement('text');
+          nameText.setAttribute('x', centerX);
+          nameText.setAttribute('y', gondole.y + 40);
+          nameText.setAttribute('text-anchor', 'middle');
+          nameText.setAttribute('font-size', '14');
+          nameText.textContent = gondole.name;
+          
+          gondoleGroup.appendChild(rectangle);
+          gondoleGroup.appendChild(codeText);
+          gondoleGroup.appendChild(nameText);
+          
+          // Ajouter les poignées de redimensionnement et rotation si sélectionnée
+          if (AppState.selectedType === "gondole" && AppState.selectedId === gondole.id) {
+            // Poignée de redimensionnement droite
+            const rightHandle = this.createSvgElement('rect');
+            rightHandle.setAttribute('x', gondole.x + gondole.width - 5);
+            rightHandle.setAttribute('y', gondole.y + gondole.height / 2 - 15);
+            rightHandle.setAttribute('width', 10);
+            rightHandle.setAttribute('height', 30);
+            rightHandle.setAttribute('class', 'resize-handle');
+            rightHandle.dataset.side = "right";
+            
+            // Gestionnaires pour le redimensionnement
+            rightHandle.addEventListener('mousedown', function(e) {
+              e.stopPropagation();
+              InteractionManager.handleStartResizing(gondole, "right", e);
+            });
+            
+            // Ligne du centre au point de rotation
+            const rotationLine = this.createSvgElement('line');
+            rotationLine.setAttribute('x1', centerX);
+            rotationLine.setAttribute('y1', centerY);
+            rotationLine.setAttribute('x2', centerX);
+            rotationLine.setAttribute('y2', gondole.y - 20);
+            rotationLine.setAttribute('class', 'rotation-line');
+            
+            // Point de poignée de rotation
+            const rotationHandle = this.createSvgElement('circle');
+            rotationHandle.setAttribute('cx', centerX);
+            rotationHandle.setAttribute('cy', gondole.y - 20);
+            rotationHandle.setAttribute('r', 8);
+            rotationHandle.setAttribute('class', 'rotation-handle');
+            
+            rotationHandle.addEventListener('mousedown', function(e) {
+              e.stopPropagation();
+              InteractionManager.handleStartRotation(gondole, e);
+            });
+            
+            gondoleGroup.appendChild(rightHandle);
+            gondoleGroup.appendChild(rotationLine);
+            gondoleGroup.appendChild(rotationHandle);
+          }
+          
+          // Gestionnaire pour la sélection et le déplacement
+          gondoleGroup.addEventListener('mousedown', function(e) {
+            if (!AppState.isPanning) {
+              e.stopPropagation();
+              GondoleManager.selectItem("gondole", gondole.id);
+              
+              if (AppState.rotationKeyPressed) {
+                InteractionManager.handleStartRotation(gondole, e);
+              } else {
+                InteractionManager.handleStartDragging(gondole, "gondole", e);
+              }
+            }
+          });
+          
+          // Gestionnaire pour l'infobulle
+          gondoleGroup.addEventListener('mousemove', function(e) {
+            if (!AppState.isDragging && !AppState.isRotating && !AppState.isResizing) {
+              UIManager.showTooltip(gondole, "gondole", e);
+            }
+          });
+          
+          gondoleGroup.addEventListener('mouseout', function() {
+            UIManager.hideTooltip();
+          });
+          
+          // Ajouter les éléments associés à cette gondole
+          const elements = AppState.getElementsByGondoleId(gondole.id);
+          elements.forEach(element => this.renderElement(gondoleGroup, element, gondole));
+          
+          parentGroup.appendChild(gondoleGroup);
+        },
+        
+        renderElement: function(parentGroup, element, gondole) {
+          const elementGroup = this.createSvgElement('g');
+          elementGroup.dataset.id = element.id;
+          elementGroup.dataset.type = "element";
+          
+          // Calculer la position absolue de l'élément
+          const absX = gondole.x + element.x;
+          const absY = gondole.y + element.y;
+          
+          // Créer le rectangle de l'élément
+          const rectangle = this.createSvgElement('rect');
+          rectangle.setAttribute('x', absX);
+          rectangle.setAttribute('y', absY);
+          rectangle.setAttribute('width', element.width);
+          rectangle.setAttribute('height', element.height);
+          rectangle.setAttribute('fill', element.color || '#3498db');
+          rectangle.setAttribute('stroke', '#2c3e50');
+          rectangle.setAttribute('stroke-width', '1');
+          rectangle.classList.add('element');
+          
+          // Ajouter une classe pour l'élément sélectionné
+          if (AppState.selectedType === "element" && AppState.selectedId === element.id) {
+            rectangle.classList.add('element-selected');
+          }
+          
+          // Texte du numéro de l'élément
+          const numberText = this.createSvgElement('text');
+          numberText.setAttribute('x', absX + element.width / 2);
+          numberText.setAttribute('y', absY + element.height / 2);
+          numberText.setAttribute('text-anchor', 'middle');
+          numberText.setAttribute('dominant-baseline', 'middle');
+          numberText.setAttribute('font-size', '14');
+          numberText.setAttribute('font-weight', 'bold');
+          numberText.setAttribute('fill', '#fff');
+          numberText.textContent = element.number;
+          
+          elementGroup.appendChild(rectangle);
+          elementGroup.appendChild(numberText);
+          
+          // Gestionnaire pour la sélection et le déplacement
+          rectangle.addEventListener('mousedown', function(e) {
+            if (!AppState.isPanning) {
+              e.stopPropagation();
+              GondoleManager.selectItem("element", element.id);
+              InteractionManager.handleStartDragging(element, "element", e, gondole);
+            }
+          });
+          
+          // S'assurer que le texte ne bloque pas la sélection
+          numberText.addEventListener('mousedown', function(e) {
+            if (!AppState.isPanning) {
+              e.stopPropagation();
+              GondoleManager.selectItem("element", element.id);
+              InteractionManager.handleStartDragging(element, "element", e, gondole);
+            }
+          });
+          
+          // Ajouter des gestionnaires au groupe pour être sûr qu'ils fonctionnent
+          elementGroup.addEventListener('mousedown', function(e) {
+            if (!AppState.isPanning) {
+              e.stopPropagation();
+              GondoleManager.selectItem("element", element.id);
+              InteractionManager.handleStartDragging(element, "element", e, gondole);
+            }
+          });
+          
+          // Gestionnaire pour l'infobulle sur tout le groupe
+          elementGroup.addEventListener('mousemove', function(e) {
+            if (!AppState.isDragging && !AppState.isRotating && !AppState.isResizing) {
+              UIManager.showTooltip(element, "element", e);
+            }
+          });
+          
+          elementGroup.addEventListener('mouseout', function() {
+            UIManager.hideTooltip();
+          });
+          
+          // Ajouter un gestionnaire de clic contextuel spécifique
+          elementGroup.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Sélectionner cet élément
+            GondoleManager.selectItem("element", element.id);
+            
+            // Afficher le menu contextuel à cette position
+            SVGCanvasManager.contextMenu.style.left = `${e.clientX}px`;
+            SVGCanvasManager.contextMenu.style.top = `${e.clientY}px`;
+            
+            // Options du menu contextuel
+            SVGCanvasManager.contextMenu.innerHTML = '';
+            
+            const addMenuItem = (text, action) => {
+              const item = document.createElement('div');
+              item.className = 'context-menu-item';
+              item.textContent = text;
+              item.addEventListener('click', action);
+              SVGCanvasManager.contextMenu.appendChild(item);
+            };
+            
+            const addDivider = () => {
+              const divider = document.createElement('div');
+              divider.className = 'context-menu-divider';
+              SVGCanvasManager.contextMenu.appendChild(divider);
+            };
+            
+            addMenuItem('Enrichir l\'élément', () => {
+              UIManager.showEnrichPopup();
+            });
+            
+            addDivider();
+            
+            addMenuItem('Supprimer', () => {
+              GondoleManager.deleteSelectedItem();
+            });
+            
+            // Afficher le menu contextuel
+            SVGCanvasManager.contextMenu.style.display = 'block';
+            AppState.contextMenuOpen = true;
+          });
+          
+          parentGroup.appendChild(elementGroup);
+        },
+        
+        handleSVGMouseDown: function(e) {
+          if (!AppState.isPanning && !AppState.isDragging && !AppState.isResizing && e.target === this.svg) {
+            GondoleManager.deselectItem();
+          }
+          
+          // Si on clique avec le bouton droit ou le bouton du milieu
+          if (e.button === 1 || e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+            e.preventDefault();
+            InteractionManager.handleStartPanning(e.clientX, e.clientY);
+            this.svg.style.cursor = 'grabbing';
+          }
+        },
+        
+        handleWheel: function(e) {
+          e.preventDefault();
+          InteractionManager.handleZoomWheel(e.clientX, e.clientY, e.deltaY);
+        }
+      };
+      
+      // GondoleManager - Gestion des gondoles et éléments
+      const GondoleManager = {
+        initialize: function() {
+          // Rien à initialiser ici pour le moment
+        },
+        
+        selectItem: function(type, id) {
+          AppState.selectItem(type, id);
+          EventBus.emit('renderCanvas');
+        },
+        
+        deselectItem: function() {
+          AppState.deselectItem();
+          EventBus.emit('renderCanvas');
+        },
+        
+        deleteSelectedItem: function() {
+          if (!AppState.selectedType || !AppState.selectedId) return;
+          
+          switch (AppState.selectedType) {
+            case "gondole":
+              AppState.removeGondole(AppState.selectedId);
+              break;
+            case "element":
+              AppState.removeElement(AppState.selectedId);
+              break;
+          }
+          
+          AppState.deselectItem();
+          EventBus.emit('renderCanvas');
+        },
+        
+        rotateSelectedGondole: function(angle) {
+          if (AppState.selectedType !== "gondole") return;
+          
+          const gondole = AppState.getGondole(AppState.selectedId);
+          if (gondole) {
+            AppState.updateGondole(AppState.selectedId, {
+              rotation: (gondole.rotation || 0) + angle
+            });
+            EventBus.emit('renderCanvas');
+          }
+        },
+        
+        addGondole: function(gondoleData) {
+          // Créer la gondole avec les dimensions par défaut
+          const gondoleId = AppState.addGondole({
+            code: gondoleData.code || AppState.getNextGondoleCode(),
+            name: gondoleData.name || 'Gondole',
+            x: 50,
+            y: 50,
+            width: AppState.defaultGondoleWidth,
+            height: AppState.defaultGondoleHeight,
+            rotation: 0
+          });
+          
+          // Sélectionner la gondole nouvellement créée
+          this.selectItem("gondole", gondoleId);
+          
+          // Actualiser le rendu
+          EventBus.emit('renderCanvas');
+          
+          return gondoleId;
+        },
+        
+        divideGondoleIntoElements: function(count, color) {
+          if (AppState.selectedType !== "gondole" || !AppState.selectedId) return;
+          
+          const gondole = AppState.getGondole(AppState.selectedId);
+          if (!gondole) return;
+          
+          // Vérifier si la gondole a déjà des éléments
+          const existingElements = AppState.getElementsByGondoleId(gondole.id);
+          if (existingElements.length > 0) {
+            alert("Cette gondole contient déjà des éléments.");
+            return;
+          }
+          
+          // Calculer la largeur de chaque élément comme un pourcentage de la gondole
+          const elementWidth = gondole.width / count;
+          const elementHeight = gondole.height;
+          
+          // Créer les éléments
+          for (let i = 0; i < count; i++) {
+            const number = i + 1; // Numérotation à partir de 1
+            
+            AppState.addElement({
+              parentId: gondole.id,
+              number: number,
+              name: `Élément ${number}`,
+              x: i * elementWidth,
+              y: 0,
+              width: elementWidth,
+              height: elementHeight,
+              color: color || '#3498db',
+              shelves: null, // Valeurs null par défaut
+              floorSpace: null,
+              depth: null,
+              manager: null
+            });
+          }
+          
+          // Actualiser le rendu
+          EventBus.emit('renderCanvas');
+        },
+        
+        enrichElement: function(elementData) {
+          if (AppState.selectedType !== "element" || !AppState.selectedId) return;
+          
+          const element = AppState.getElement(AppState.selectedId);
+          if (!element) return;
+          
+          // Mettre à jour les données d'enrichissement
+          AppState.updateElement(AppState.selectedId, {
+            shelves: elementData.shelves !== '' ? elementData.shelves : null,
+            floorSpace: elementData.floorSpace !== '' ? elementData.floorSpace : null,
+            depth: elementData.depth !== '' ? elementData.depth : null,
+            manager: elementData.manager || null
+          });
+          
+          // Actualiser le rendu
+          EventBus.emit('renderCanvas');
+        }
+      };
+      
+      // InteractionManager - Gestion des interactions utilisateur
+      const InteractionManager = {
+        dragOffsetX: 0,
+        dragOffsetY: 0,
+        rotationCenterX: 0,
+        rotationCenterY: 0,
+        resizeStartX: 0,
+        resizeStartWidth: 0,
+        parentItem: null,
+        
+        initialize: function() {
+          // Initialiser les gestionnaires d'événements du clavier
+          document.addEventListener('keydown', this.handleKeyDown.bind(this));
+          document.addEventListener('keyup', this.handleKeyUp.bind(this));
+        },
+        
+        handleZoomIn: function() {
+          AppState.scale *= 1.2;
+          this.updateTransform();
+        },
+        
+        handleZoomOut: function() {
+          AppState.scale /= 1.2;
+          if (AppState.scale < 0.1) AppState.scale = 0.1;
+          this.updateTransform();
+        },
+        
+        handleZoomReset: function() {
+          AppState.scale = 1;
+          AppState.translateX = 0;
+          AppState.translateY = 0;
+          this.updateTransform();
+        },
+        
+        handleZoomWheel: function(mouseX, mouseY, deltaY) {
+          // Position du curseur dans les coordonnées du client
+          const point = SVGCanvasManager.svg.createSVGPoint();
+          point.x = mouseX;
+          point.y = mouseY;
+          const svgPoint = point.matrixTransform(SVGCanvasManager.svg.getScreenCTM().inverse());
+          
+          // Point avant zoom en coordonnées du monde
+          const worldX = svgPoint.x / AppState.scale - AppState.translateX;
+          const worldY = svgPoint.y / AppState.scale - AppState.translateY;
+          
+          // Facteur de zoom
+          const zoomFactor = deltaY < 0 ? 1.1 : 0.9;
+          
+          // Appliquer le facteur de zoom
+          AppState.scale *= zoomFactor;
+          if (AppState.scale < 0.1) AppState.scale = 0.1;
+          if (AppState.scale > 10) AppState.scale = 10;
+          
+          // Calculer la nouvelle translation pour que le point sous la souris reste au même endroit
+          AppState.translateX = -worldX + svgPoint.x / AppState.scale;
+          AppState.translateY = -worldY + svgPoint.y / AppState.scale;
+          
+          this.updateTransform();
+        },
+        
+        handleStartPanning: function(clientX, clientY) {
+          AppState.isPanning = true;
+          this.startPointX = clientX / AppState.scale - AppState.translateX;
+          this.startPointY = clientY / AppState.scale - AppState.translateY;
+          
+          // Ajouter des gestionnaires temporaires
+          document.addEventListener('mousemove', this.handlePanMove);
+          document.addEventListener('mouseup', this.handlePanEnd);
+        },
+        
+        // Fonction pour calculer l'angle entre deux points par rapport à un centre
+        calculateAngle: function(center, point) {
+          return Math.atan2(point.y - center.y, point.x - center.x) * (180 / Math.PI);
+        },
+        
+        handleStartResizing: function(gondole, side, e) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          AppState.isResizing = true;
+          AppState.resizeSide = side;
+          
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          this.resizeStartX = mousePos.x;
+          this.resizeStartWidth = gondole.width;
+          
+          // Ajouter les écouteurs d'événements temporaires
+          document.addEventListener('mousemove', this.handleResizeMove);
+          document.addEventListener('mouseup', this.handleResizeEnd);
+        },
+        
+        handleResizeMove: function(e) {
+          if (!AppState.isResizing || AppState.selectedType !== "gondole") return;
+          
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          const gondole = AppState.getGondole(AppState.selectedId);
+          
+          if (AppState.resizeSide === "right") {
+            // Redimensionnement à droite
+            const deltaX = mousePos.x - InteractionManager.resizeStartX;
+            const newWidth = Math.max(50, InteractionManager.resizeStartWidth + deltaX);
+            
+            AppState.updateGondole(AppState.selectedId, {
+              width: newWidth
+            });
+            
+            // Recalculer les largeurs des éléments
+            AppState.recalculateElementsWidth(AppState.selectedId);
+          }
+          
+          EventBus.emit('renderCanvas');
+        },
+        
+        handleResizeEnd: function() {
+          AppState.isResizing = false;
+          AppState.resizeSide = null;
+          document.removeEventListener('mousemove', InteractionManager.handleResizeMove);
+          document.removeEventListener('mouseup', InteractionManager.handleResizeEnd);
+        },
+        
+        handleStartDragging: function(item, type, e, parentItem) {
+          e.preventDefault();
+          
+          // Stocker une référence à l'élément parent si nécessaire
+          this.parentItem = parentItem;
+          
+          // Obtenir la position de la souris dans les coordonnées SVG
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          
+          // Calculer le décalage selon le type d'élément
+          if (type === "gondole") {
+            // Pour les gondoles, la position est absolue
+            this.dragOffsetX = mousePos.x - item.x;
+            this.dragOffsetY = mousePos.y - item.y;
+          } else if (type === "element" && parentItem) {
+            // Pour les éléments, la position est relative à la gondole
+            // Mais nous devons calculer le décalage par rapport à la position absolue de la souris
+            const absX = parentItem.x + item.x;
+            const absY = parentItem.y + item.y;
+            this.dragOffsetX = mousePos.x - absX;
+            this.dragOffsetY = mousePos.y - absY;
+          }
+          
+          // Marquer comme en train de faire un drag
+          AppState.isDragging = true;
+          
+          // Ajouter les écouteurs d'événements temporaires
+          document.addEventListener('mousemove', this.handleDragMove);
+          document.addEventListener('mouseup', this.handleDragEnd);
+        },
+        
+        handleDragMove: function(e) {
+          if (!AppState.isDragging || !AppState.selectedType || !AppState.selectedId) return;
+          
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          
+          if (AppState.selectedType === "gondole") {
+            // Pour les gondoles, mettre à jour la position absolue
+            AppState.updateGondole(AppState.selectedId, {
+              x: mousePos.x - InteractionManager.dragOffsetX,
+              y: mousePos.y - InteractionManager.dragOffsetY
+            });
+          } else if (AppState.selectedType === "element") {
+            // Pour les éléments, mettre à jour la position relative à la gondole
+            const gondole = AppState.getParentGondole(AppState.selectedId);
+            if (gondole) {
+              // Récupérer l'élément actuel
+              const currentElement = AppState.getElement(AppState.selectedId);
+              
+              // Obtenir tous les autres éléments de la gondole
+              const otherElements = AppState.getElementsByGondoleId(gondole.id)
+                .filter(e => e.id !== AppState.selectedId);
+              
+              // Calculer la nouvelle position relative
+              let relX = mousePos.x - InteractionManager.dragOffsetX - gondole.x;
+              
+              // S'assurer que relX reste positif et dans les limites de la gondole
+              relX = Math.max(0, Math.min(gondole.width - currentElement.width, relX));
+              
+              // Vérifier si la nouvelle position provoquerait un chevauchement
+              let canMove = true;
+              
+              otherElements.forEach(otherElement => {
+                // Intervalle de l'élément actuel après déplacement
+                const currentStart = relX;
+                const currentEnd = relX + currentElement.width;
+                
+                // Intervalle de l'autre élément
+                const otherStart = otherElement.x;
+                const otherEnd = otherElement.x + otherElement.width;
+                
+                // Vérifier le chevauchement
+                if (!(currentEnd <= otherStart || currentStart >= otherEnd)) {
+                  canMove = false;
+                }
+              });
+              
+              // Si on peut déplacer sans chevauchement
+              if (canMove) {
+                AppState.updateElement(AppState.selectedId, {
+                  x: relX,
+                  y: 0 // Garder les éléments alignés en haut
+                });
+              }
+            }
+          }
+          
+          EventBus.emit('renderCanvas');
+        },
+        
+        handleDragEnd: function() {
+          AppState.isDragging = false;
+          InteractionManager.parentItem = null;
+          
+          document.removeEventListener('mousemove', InteractionManager.handleDragMove);
+          document.removeEventListener('mouseup', InteractionManager.handleDragEnd);
+        },
+        
+        handleStartRotation: function(gondole, e) {
+          e.preventDefault();
+          
+          // Marquer comme en train de faire une rotation
+          AppState.isRotating = true;
+          
+          // Calculer le centre de rotation (centre de la gondole)
+          this.rotationCenterX = gondole.x + gondole.width / 2;
+          this.rotationCenterY = gondole.y + gondole.height / 2;
+          
+          // Obtenir la position de la souris dans les coordonnées SVG
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          
+          // Angle de départ
+          const startAngle = this.calculateAngle(
+            {x: this.rotationCenterX, y: this.rotationCenterY},
+            {x: mousePos.x, y: mousePos.y}
+          );
+          
+          // Angle actuel de la gondole
+          const currentRotation = gondole.rotation || 0;
+          
+          // Données pour la rotation
+          this.rotationData = {
+            startAngle: startAngle,
+            currentRotation: currentRotation
+          };
+          
+          // Ajouter les écouteurs d'événements temporaires
+          document.addEventListener('mousemove', this.handleRotationMove);
+          document.addEventListener('mouseup', this.handleRotationEnd);
+        },
+        
+        handleRotationMove: function(e) {
+          if (!AppState.isRotating || AppState.selectedType !== "gondole") return;
+          
+          const mousePos = SVGCanvasManager.getMousePosition(e);
+          
+          // Calculer le nouvel angle
+          const newAngle = InteractionManager.calculateAngle(
+            {x: InteractionManager.rotationCenterX, y: InteractionManager.rotationCenterY},
+            {x: mousePos.x, y: mousePos.y}
+          );
+          
+          // Appliquer la différence d'angle à la gondole
+          AppState.updateGondole(AppState.selectedId, {
+            rotation: InteractionManager.rotationData.currentRotation + 
+                    (newAngle - InteractionManager.rotationData.startAngle)
+          });
+          
+          EventBus.emit('renderCanvas');
+        },
+        
+        handleRotationEnd: function() {
+          AppState.isRotating = false;
+          document.removeEventListener('mousemove', InteractionManager.handleRotationMove);
+          document.removeEventListener('mouseup', InteractionManager.handleRotationEnd);
+        },
+        
+        handlePanMove: function(e) {
+          if (AppState.isPanning) {
+            AppState.translateX = e.clientX / AppState.scale - InteractionManager.startPointX;
+            AppState.translateY = e.clientY / AppState.scale - InteractionManager.startPointY;
+            EventBus.emit('renderCanvas');
+            UIManager.updateZoomInfo(Math.round(AppState.scale * 100));
+          }
+        },
+        
+        handlePanEnd: function() {
+          AppState.isPanning = false;
+          SVGCanvasManager.svg.style.cursor = 'default';
+          document.removeEventListener('mousemove', InteractionManager.handlePanMove);
+          document.removeEventListener('mouseup', InteractionManager.handlePanEnd);
+        },
+        
+        handleKeyDown: function(e) {
+          // Touche R pour la rotation
+          if (e.key === 'r' || e.key === 'R') {
+            AppState.rotationKeyPressed = true;
+            document.getElementById('rotateInfo').style.display = 'block';
+          }
+          
+          // Supprimer avec la touche Suppr ou Delete
+          if (e.key === 'Delete' && AppState.selectedType) {
+            GondoleManager.deleteSelectedItem();
+          }
+          
+          // Désélectionner avec Escape
+          if (e.key === 'Escape') {
+            GondoleManager.deselectItem();
+          }
+        },
+        
+        handleKeyUp: function(e) {
+          if (e.key === 'r' || e.key === 'R') {
+            AppState.rotationKeyPressed = false;
+            document.getElementById('rotateInfo').style.display = 'none';
+          }
+        },
+        
+        updateTransform: function() {
+          EventBus.emit('renderCanvas');
+          UIManager.updateZoomInfo(Math.round(AppState.scale * 100));
+        }
+      };
+      
+      // FileManager - Gestion des fichiers (sauvegarde/chargement)
+      const FileManager = {
+        initialize: function() {
+          // Rien à initialiser ici pour le moment
+        },
+        
+        saveToFile: function() {
+          try {
+            // Préparer l'objet à sauvegarder
+            const data = {
+              gondoles: AppState.gondoles,
+              elements: AppState.elements,
+              gondoleCounter: AppState.gondoleCounter
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'plan-gondole.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            alert("Plan sauvegardé avec succès.");
+          } catch (error) {
+            console.error("Erreur lors de la sauvegarde:", error);
+            alert("Erreur lors de la sauvegarde: " + error.message);
+          }
+        },
+        
+        loadFromFile: function(file) {
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            try {
+              const data = JSON.parse(event.target.result);
+              
+              // Vérifier la structure des données
+              if (!Array.isArray(data.gondoles) || !Array.isArray(data.elements)) {
+                throw new Error("Format de fichier invalide");
+              }
+              
+              // Mettre à jour l'état de l'application
+              AppState.gondoles = data.gondoles;
+              AppState.elements = data.elements;
+              AppState.gondoleCounter = data.gondoleCounter || 1;
+              
+              // Désélectionner l'élément actuel
+              AppState.deselectItem();
+              
+              // Mettre à jour l'affichage
+              EventBus.emit('renderCanvas');
+              
+              alert("Plan chargé avec succès.");
+            } catch (error) {
+              console.error("Erreur lors du chargement:", error);
+              alert("Erreur lors du chargement du fichier: " + error.message);
+            }
+          };
+          reader.readAsText(file);
+        }
+      };
+      
+      // UIManager - Gestion de l'interface utilisateur
+      const UIManager = {
+        tooltip: document.getElementById('tooltip'),
+        gondolePopup: document.getElementById('gondolePopup'),
+        dividePopup: document.getElementById('dividePopup'),
+        enrichPopup: document.getElementById('enrichPopup'),
+        
+        initialize: function() {
+          // Gestionnaires pour les pop-ups
+          document.getElementById('btnAddGondole').addEventListener('click', this.showGondolePopup.bind(this));
+          document.getElementById('btnDeleteSelected').addEventListener('click', GondoleManager.deleteSelectedItem.bind(GondoleManager));
+          
+          document.getElementById('gondoleCancelBtn').addEventListener('click', () => this.closePopup(this.gondolePopup));
+          document.getElementById('divideCancelBtn').addEventListener('click', () => this.closePopup(this.dividePopup));
+          document.getElementById('enrichCancelBtn').addEventListener('click', () => this.closePopup(this.enrichPopup));
+          
+          document.getElementById('gondoleSubmitBtn').addEventListener('click', this.submitGondoleForm.bind(this));
+          document.getElementById('divideSubmitBtn').addEventListener('click', this.submitDivideForm.bind(this));
+          document.getElementById('enrichSubmitBtn').addEventListener('click', this.submitEnrichForm.bind(this));
+        },
+        
+        updateZoomInfo: function(zoomPercentage) {
+          document.getElementById('infoPanel').textContent = `Zoom: ${zoomPercentage}%`;
+        },
+        
+        showTooltip: function(item, type, event) {
+          // Position du tooltip
+          const mouseX = event.clientX;
+          const mouseY = event.clientY;
+          
+          this.tooltip.style.left = `${mouseX + 15}px`;
+          this.tooltip.style.top = `${mouseY + 15}px`;
+          this.tooltip.style.display = 'block';
+          
+          // Contenu du tooltip selon le type
+          let tooltipContent = '';
+          
+          switch (type) {
+            case "gondole":
+              tooltipContent = `
+                <div style="font-weight: bold">${item.code}</div>
+                <div>${item.name}</div>
+                <div>Dimensions: ${item.width}x${item.height}</div>
+                <div>Rotation: ${item.rotation || 0}°</div>
+              `;
+              break;
+            case "element":
+              tooltipContent = `
+                <div style="font-weight: bold">Élément ${item.number}</div>
+                <div>${item.name}</div>
+              `;
+              
+              // Ajouter les informations d'enrichissement si disponibles
+              if (item.shelves !== null || item.floorSpace !== null || item.depth !== null || item.manager) {
+                tooltipContent += `
+                  <table class="tooltip-table">
+                    <tr>
+                      <th>Étagères:</th>
+                      <td>${item.shelves !== null ? item.shelves : '-'}</td>
+                    </tr>
+                    <tr>
+                      <th>Mètre au sol:</th>
+                      <td>${item.floorSpace !== null ? item.floorSpace + ' m' : '-'}</td>
+                    </tr>
+                    <tr>
+                      <th>Profondeur:</th>
+                      <td>${item.depth !== null ? item.depth + ' cm' : '-'}</td>
+                    </tr>
+                    <tr>
+                      <th>Responsable:</th>
+                      <td>${item.manager || '-'}</td>
+                    </tr>
+                  </table>
+                `;
+              }
+              break;
+          }
+          
+          this.tooltip.innerHTML = tooltipContent;
+        },
+        
+        hideTooltip: function() {
+          this.tooltip.style.display = 'none';
+        },
+        
+        showGondolePopup: function() {
+          // Réinitialiser le formulaire
+          document.getElementById('gondoleCode').value = AppState.getNextGondoleCode();
+          document.getElementById('gondoleName').value = "Gondole " + AppState.gondoleCounter;
+          
+          // Afficher le popup
+          this.gondolePopup.classList.remove('hidden');
+        },
+        
+        showDividePopup: function() {
+          if (AppState.selectedType !== "gondole") return;
+          
+          // Réinitialiser le formulaire
+          document.getElementById('elementsCount').value = "5";
+          document.getElementById('elementsColor').value = "#3498db";
+          
+          // Afficher le popup
+          this.dividePopup.classList.remove('hidden');
+        },
+        
+        showEnrichPopup: function() {
+          if (AppState.selectedType !== "element") return;
+          
+          const element = AppState.getElement(AppState.selectedId);
+          if (!element) return;
+          
+          // Vider le formulaire (tous les champs sont optionnels)
+          document.getElementById('shelvesCount').value = element.shelves !== null ? element.shelves : '';
+          document.getElementById('floorSpace').value = element.floorSpace !== null ? element.floorSpace : '';
+          document.getElementById('elementDepth').value = element.depth !== null ? element.depth : '';
+          document.getElementById('elementManager').value = element.manager || '';
+          
+          // Afficher le popup
+          this.enrichPopup.classList.remove('hidden');
+        },
+        
+        closePopup: function(popup) {
+          popup.classList.add('hidden');
+        },
+        
+        submitGondoleForm: function() {
+          const code = document.getElementById('gondoleCode').value;
+          const name = document.getElementById('gondoleName').value;
+          
+          if (!code) {
+            alert('Veuillez entrer un code pour la gondole');
+            return;
+          }
+          
+          GondoleManager.addGondole({
+            code: code,
+            name: name || 'Gondole'
+          });
+          
+          this.closePopup(this.gondolePopup);
+        },
+        
+        submitDivideForm: function() {
+          const count = parseInt(document.getElementById('elementsCount').value);
+          const color = document.getElementById('elementsColor').value;
+          
+          if (isNaN(count) || count < 1 || count > 20) {
+            alert('Le nombre d\'éléments doit être entre 1 et 20');
+            return;
+          }
+          
+          GondoleManager.divideGondoleIntoElements(count, color);
+          this.closePopup(this.dividePopup);
+        },
+        
+        submitEnrichForm: function() {
+          const shelves = document.getElementById('shelvesCount').value !== '' ? 
+            parseInt(document.getElementById('shelvesCount').value) : '';
+          const floorSpace = document.getElementById('floorSpace').value !== '' ? 
+            parseFloat(document.getElementById('floorSpace').value) : '';
+          const depth = document.getElementById('elementDepth').value !== '' ? 
+            parseFloat(document.getElementById('elementDepth').value) : '';
+          const manager = document.getElementById('elementManager').value;
+          
+          // Vérifications de validité seulement si une valeur est fournie
+          if (shelves !== '' && (isNaN(shelves) || shelves < 1)) {
+            alert('Le nombre d\'étagères doit être au moins 1');
+            return;
+          }
+          
+          if (floorSpace !== '' && (isNaN(floorSpace) || floorSpace <= 0)) {
+            alert('Le mètre au sol doit être un nombre positif');
+            return;
+          }
+          
+          if (depth !== '' && (isNaN(depth) || depth <= 0)) {
+            alert('La profondeur doit être un nombre positif');
+            return;
+          }
+          
+          GondoleManager.enrichElement({
+            shelves: shelves,
+            floorSpace: floorSpace,
+            depth: depth,
+            manager: manager
+          });
+          
+          this.closePopup(this.enrichPopup);
+        }
+      };
+      
+      // Initialisation des modules
+      SVGCanvasManager.initialize();
+      GondoleManager.initialize();
+      InteractionManager.initialize();
+      FileManager.initialize();
+      UIManager.initialize();
+      
+      // Gestionnaires d'événements pour les boutons de zoom et rotation
+      document.getElementById('zoomIn').addEventListener('click', InteractionManager.handleZoomIn.bind(InteractionManager));
+      document.getElementById('zoomOut').addEventListener('click', InteractionManager.handleZoomOut.bind(InteractionManager));
+      document.getElementById('zoomReset').addEventListener('click', InteractionManager.handleZoomReset.bind(InteractionManager));
+      document.getElementById('rotateLeft').addEventListener('click', function() {
+        GondoleManager.rotateSelectedGondole(-15);
+      });
+      document.getElementById('rotateRight').addEventListener('click', function() {
+        GondoleManager.rotateSelectedGondole(15);
+      });
+      
+      // Gestionnaire pour le bouton de sauvegarde
+      document.getElementById('btnSave').addEventListener('click', FileManager.saveToFile.bind(FileManager));
+      
+      // Gestionnaire pour le bouton de chargement
+      document.getElementById('btnLoad').addEventListener('click', function() {
+        document.getElementById('fileInput').click();
+      });
+      
+      document.getElementById('fileInput').addEventListener('change', function(e) {
+        FileManager.loadFromFile(e.target.files[0]);
+      });
+      
+      // Rendu initial
+      EventBus.emit('renderCanvas');
+    });
+  </script>
+</body>
+</html>
